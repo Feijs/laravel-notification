@@ -5,13 +5,17 @@ namespace Tricki\Notification;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Description of Notification
+ * Class for creation of Notification models
  *
- * @author Thomas
+ * @package Tricki/Laravel-notification
+ * @author Thomas Rickenbach
+ * @author Mike Feijs <mike@feijs.nl>
  */
 class Notification
 {
-
+	/**
+	 * @deprecated
+	 */
 	public function getClass($type)
 	{
 		if (empty($type))
@@ -27,30 +31,47 @@ class Notification
 	/**
 	 * Creates a notification and assigns it to some users
 	 *
-	 * @param string $type  The notification type
-	 * @param Model $sender The object that initiated the notification (a user, a group, a web service etc.)
+	 * @param string $class The full notification class
+	 * @param mixed $observers The user(s) which should receive this notification.
+	 * @param Model|NULL $sender The object that initiated the notification (a user, a group, a web service etc.)
 	 * @param Model|NULL $object An object that was changed (a post that has been liked).
-	 * @param mixed $users The user(s) which should receive this notification.
 	 * @param mixed|NULL $data Any additional data
 	 *
 	 * @return \Tricki\Notification\Models\Notification
 	 */
-	public function create($type, Model $sender, Model $object = NULL, $users = array(), $data = NULL)
+	public function create($class, $observers = array(), Model $sender = null, Model $object = NULL, $data = NULL)
 	{
-		$class = $this->getClass($type);
 		$notification = new $class();
 
 		if ($data)
 		{
 			$notification->data = $data;
 		}
-		$notification->sender()->associate($sender);
+		if ($sender) 
+		{
+			$notification->sender()->associate($sender);
+		}
 		if ($object)
 		{
 			$notification->object()->associate($object);
 		}
 		$notification->save();
-		$notification->users()->saveMany($users);
+
+		foreach($observers as $observer) 
+		{
+			switch(get_class($observer)) 
+			{
+				case 'User':
+					$notification->users()->attach($observer->id);
+					break;
+				case 'Role':
+					$notification->roles()->attach([$observer->id]);
+					break;
+				case 'Permission':
+					$notification->permissions()->attach([$observer->id]);
+					break;
+			}
+		}
 
 		return $notification;
 	}

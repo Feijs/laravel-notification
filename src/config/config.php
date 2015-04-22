@@ -1,5 +1,6 @@
 <?php
 
 return array(
-	'namespace' => ''
+	'namespace' => '',
+	'entrust' => true
 );

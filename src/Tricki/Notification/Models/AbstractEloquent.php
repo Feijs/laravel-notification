@@ -5,10 +5,13 @@ namespace Tricki\Notification\Models;
 use Illuminate\Database\Eloquent;
 use Illuminate\Database\Eloquent\Builder;
 
-/*
+/**
  * Abstract class allowing for Single Table Inheritence
+ *
+ * @package Tricki/Laravel-notification
+ * @author Thomas Rickenbach
+ * @author Mike Feijs <mike@feijs.nl>
  */
-
 abstract class AbstractEloquent extends Eloquent\Model
 {
 
@@ -36,7 +39,7 @@ abstract class AbstractEloquent extends Eloquent\Model
 			}
 			else
 			{
-				$class = $this->getClass($attributes[$this->typeField]);
+				$class = $attributes[$this->typeField];
 				return new $class;
 			}
 		}
@@ -85,7 +88,7 @@ abstract class AbstractEloquent extends Eloquent\Model
 
 		if ($this->isSubType())
 		{
-			$builder->where($this->typeField, $this->getClass($this->typeField));
+			$builder->where($this->typeField, $this->getType());
 		}
 
 		return $builder;
@@ -94,11 +97,6 @@ abstract class AbstractEloquent extends Eloquent\Model
 	protected function isSubType()
 	{
 		return $this->isSubType;
-	}
-
-	protected function getClass($type)
-	{
-		return get_class($this);
 	}
 
 	protected function getType()

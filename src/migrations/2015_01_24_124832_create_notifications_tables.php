@@ -23,18 +23,22 @@ class CreateNotificationsTables extends Migration {
 				case 'class':
 					$table->string('type');
 			}
-			$table->morphs('sender');
-			$table->morphs('object');
+			//$table->morphs('sender');
+			//$table->morphs('object');
+			$table->integer('sender_id')->nullable();
+			$table->string('sender_type')->nullable();
+			$table->integer('object_id')->nullable();
+			$table->string('object_type')->nullable();
 			$table->text('data')->nullable();
 			$table->timestamps();
 		});
 
-		Schema::create('notification_user', function(Blueprint $table)
+		Schema::create('notification_observer', function(Blueprint $table)
 		{
 			$table->increments('id');
 			$table->integer('notification_id');
-			$table->integer('user_id');
-			$table->timestamp('read_at');
+			$table->morphs('observer');
+			$table->timestamp('read_at')->nullable();
 			$table->timestamps();
 			$table->softDeletes();
 		});
@@ -48,7 +52,7 @@ class CreateNotificationsTables extends Migration {
 	public function down()
 	{
 		Schema::drop('notifications');
-		Schema::drop('notification_user');
+		Schema::drop('notification_observer');
 	}
 
 }

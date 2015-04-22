@@ -2,12 +2,17 @@
 
 namespace Tricki\Notification\Models;
 
+use User;
 use Eloquent;
+use Config;
+use Carbon\Carbon;
 
 /**
  * The main Notification class
  *
+ * @package Tricki/Laravel-notification
  * @author Thomas Rickenbach
+ * @author Mike Feijs <mike@feijs.nl>
  */
 class Notification extends AbstractEloquent
 {
@@ -18,9 +23,31 @@ class Notification extends AbstractEloquent
 
 	public static $type = '';
 
+	/** 
+	 * Users which may read this notification 
+	 * @return Illuminate\Database\Eloquent\Relations\MorphToMany
+	 */
 	public function users()
 	{
-		return $this->belongsToMany('User', 'notification_user', 'notification_id')->withTimestamps();
+		return $this->morphedByMany(Config::get('auth.model'), 'observer', 'notification_observer', 'notification_id')->withTimestamps();
+	}
+
+	/** 
+	 * Roles which give the ability to read this notification 
+	 * @return Illuminate\Database\Eloquent\Relations\MorphToMany
+	 */
+	public function roles()
+	{
+		return $this->morphedByMany('Role', 'observer', 'notification_observer', 'notification_id')->withTimestamps();
+	}
+
+	/** 
+	 * Permissions which give the ability to read this notification 
+	 * @return Illuminate\Database\Eloquent\Relations\MorphToMany
+	 */
+	public function permissions()
+	{
+		return $this->morphedByMany('Permission', 'observer', 'notification_observer', 'notification_id')->withTimestamps();
 	}
 
 	public function sender()
@@ -45,7 +72,7 @@ class Notification extends AbstractEloquent
 
 	public function newPivot(Eloquent $parent, array $attributes, $table, $exists)
 	{
-		return new NotificationUser($parent, $attributes, $table, $exists);
+		return new NotificationObserver($parent, $attributes, $table, $exists);
 	}
 
 	protected function isSubType()
@@ -62,5 +89,97 @@ class Notification extends AbstractEloquent
 	{
 		return static::$type;
 	}
+
+	/**
+	 * Fetch all notifications the given user may read
+	 * @param User $user
+	 * @param boolean $read
+	 * @return Illuminate\Database\Eloquent\Collection
+	 */
+	public function fetch(User $user, $read = false)
+	{
+		/*-----------------------------------------
+		 * Simple query with users only
+		 */
+		if(!Config::get('notification::entrust')) {
+			return $this->whereHas('users', function($subq) use ($user, $read)
+			{	
+				$subq->where('users.id', '=', $user->id)
+				     ->whereNull('read_at', 'and', $read);
+			})->get();
+		}
+
+		/*-----------------------------------------
+		 * Extended query with roles & permissions
+		 */
+
+		//Subquery to fetch all role ids
+		$roles = $user->roles;
+		$role_ids = $roles->lists('id');
+
+		//Subquery to fetch all permission ids
+		$permission_ids = [];
+		foreach($roles as $role) {
+			$permission_ids = array_merge($permission_ids, $role->perms->lists('id'));
+		}
+
+		return $this->where(function($mainq) use ($user, $role_ids, $permission_ids, $read)
+		{
+			$mainq->whereHas('users', function($subq) use ($user, $read)
+			{	
+				$subq->where('users.id', '=', $user->id)
+				     ->whereNull('read_at', 'and', $read);
+			})
+			->whereHas('users', function($subq) use ($user, $read) 
+			{
+				$subq->where('users.id', '=', $user->id)
+				     ->whereNull('read_at', 'and', !$read);
+			}, '<', 1)	
+			->orWhereHas('roles', function($subq) use ($role_ids, $read) 
+			{
+				$subq->whereIn('roles.id', $role_ids)
+				     ->whereNull('read_at', 'and', $read);
+			})
+			->orWhereHas('permissions', function($subq) use ($permission_ids, $read) 
+			{
+				$subq->whereIn('permissions.id', $permission_ids)
+				     ->whereNull('read_at', 'and', $read);
+			});
+		})->get();
+	}
+
+	/**
+	 * Mark this notification as read by the specified user
+	 *  
+	 * @param int $user_id
+	 */
+	public function markRead($user_id)
+	{
+		$this->users()->sync([ $user_id => ['read_at' => Carbon::now()] ]);
+	}
+
+	/*----------------------------
+     * Accessors and Mutators
+     *---------------------------*/
+
+    /** 
+     * Unserializes & returns the data array
+     *
+     * @return string[]
+     */
+    public function getDataAttribute()
+    {
+        return unserialize($this->attributes['data']);
+    }
+
+	/** 
+     * Serializes & stores the data array
+     *
+     * @param string[]
+     */
+    public function setDataAttribute($value)
+    {
+        $this->attributes['data'] = serialize($value);
+    }
 
 }
