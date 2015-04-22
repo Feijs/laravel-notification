@@ -123,29 +123,30 @@ class Notification extends AbstractEloquent
 			$permission_ids = array_merge($permission_ids, $role->perms->lists('id'));
 		}
 
-		return $this->where(function($mainq) use ($user, $role_ids, $permission_ids, $read)
-		{
-			$mainq->whereHas('users', function($subq) use ($user, $read)
-			{	
-				$subq->where('users.id', '=', $user->id)
-				     ->whereNull('read_at', 'and', $read);
-			})
-			->whereHas('users', function($subq) use ($user, $read) 
+		return 
+			$this->where(function($mainq) use ($user, $role_ids, $permission_ids, $read)
+			{
+				$mainq->whereHas('users', function($subq) use ($user, $read)
+				{	
+					$subq->where('users.id', '=', $user->id)
+					     ->whereNull('read_at', 'and', $read);
+				})
+				->orWhereHas('roles', function($subq) use ($role_ids, $read) 
+				{
+					$subq->whereIn('roles.id', $role_ids)
+					     ->whereNull('read_at', 'and', $read);
+				})
+				->orWhereHas('permissions', function($subq) use ($permission_ids, $read) 
+				{
+					$subq->whereIn('permissions.id', $permission_ids)
+					     ->whereNull('read_at', 'and', $read);
+				});
+			})->whereHas('users', function($subq) use ($user, $read) 
 			{
 				$subq->where('users.id', '=', $user->id)
 				     ->whereNull('read_at', 'and', !$read);
 			}, '<', 1)	
-			->orWhereHas('roles', function($subq) use ($role_ids, $read) 
-			{
-				$subq->whereIn('roles.id', $role_ids)
-				     ->whereNull('read_at', 'and', $read);
-			})
-			->orWhereHas('permissions', function($subq) use ($permission_ids, $read) 
-			{
-				$subq->whereIn('permissions.id', $permission_ids)
-				     ->whereNull('read_at', 'and', $read);
-			});
-		})->get();
+			->get();
 	}
 
 	/**
