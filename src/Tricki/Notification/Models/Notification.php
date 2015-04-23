@@ -98,6 +98,28 @@ class Notification extends AbstractEloquent
 	 */
 	public function fetch(User $user, $read = false)
 	{
+		return $this->fetchQuery($user, $read)->get();
+	}
+
+	/**
+	 * Fetch all notifications the given user may read
+	 * @param User $user
+	 * @param boolean $read
+	 * @return Illuminate\Database\Eloquent\Collection
+	 */
+	public function count(User $user, $read = false)
+	{
+		return $this->fetchQuery($user, $read)->count();
+	}
+
+	/**
+	 * Create a query for notifications the given user may read
+	 * @param User $user
+	 * @param boolean $read
+	 * @return Illuminate\Database\Eloquent\Builder
+	 */
+	protected function fetchQuery(User $user, $read = false)
+	{
 		/*-----------------------------------------
 		 * Simple query with users only
 		 */
@@ -106,7 +128,7 @@ class Notification extends AbstractEloquent
 			{	
 				$subq->where('users.id', '=', $user->id)
 				     ->whereNull('read_at', 'and', $read);
-			})->get();
+			});
 		}
 
 		/*-----------------------------------------
@@ -145,9 +167,9 @@ class Notification extends AbstractEloquent
 			{
 				$subq->where('users.id', '=', $user->id)
 				     ->whereNull('read_at', 'and', !$read);
-			}, '<', 1)	
-			->get();
+			}, '<', 1);	
 	}
+
 
 	/**
 	 * Mark this notification as read by the specified user
