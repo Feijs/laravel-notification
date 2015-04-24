@@ -33,7 +33,7 @@ class NotificationServiceProvider extends ServiceProvider
 	{
 		$this->app->singleton('notification', function()
 		{
-			return new Notification;
+			return $this->app->make('Tricki\Notification\Notification');
 		});
 		$this->app->booting(function()
 		{

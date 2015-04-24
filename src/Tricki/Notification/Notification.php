@@ -2,6 +2,7 @@
 
 namespace Tricki\Notification;
 
+use Illuminate\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -13,19 +14,11 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Notification
 {
-	/**
-	 * @deprecated
-	 */
-	public function getClass($type)
-	{
-		if (empty($type))
-		{
-			throw new \Exception('No notification type given');
-		}
-		$namespace = \Illuminate\Support\Facades\Config::get('notification::namespace');
-		$namespace = join('\\', explode('\\', $namespace)) . '\\';
+	protected $events;
 
-		return $namespace . studly_case($type) . 'Notification';
+	public function __construct(Dispatcher $events)
+	{
+	  	$this->events = $events;
 	}
 
 	/**
@@ -73,7 +66,17 @@ class Notification
 			}
 		}
 
+		//Notify app about the new notification
+		$this->fireNotificationAssigned($notification, $observers);
+
 		return $notification;
 	}
 
+	protected function fireNotificationAssigned($notification, $observers = array())
+	{
+		$event = $this->events->fire('notification.assigned', [
+			'notification' => $notification,
+			'observers' => $observers
+		]);
+	}
 }
