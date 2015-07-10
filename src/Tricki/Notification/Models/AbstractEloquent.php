@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\Builder;
  */
 abstract class AbstractEloquent extends Eloquent\Model
 {
-
 	protected $isSuperType = false; // set true in super-class model
 	protected $isSubType = false; // set true in inherited models
 	protected $typeField = 'type'; //override as needed, only set on the super-class model

@@ -6,6 +6,7 @@ use User;
 use Eloquent;
 use Config;
 use Carbon\Carbon;
+use Event;
 
 /**
  * The main Notification class
@@ -16,7 +17,6 @@ use Carbon\Carbon;
  */
 class Notification extends AbstractEloquent
 {
-
 	protected $isSuperType = true;
 
 	protected $table = 'notifications';

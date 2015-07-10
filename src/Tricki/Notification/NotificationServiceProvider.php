@@ -6,7 +6,6 @@ use Illuminate\Support\ServiceProvider;
 
 class NotificationServiceProvider extends ServiceProvider
 {
-
 	/**
 	 * Indicates if loading of the provider is deferred.
 	 *
@@ -21,7 +20,7 @@ class NotificationServiceProvider extends ServiceProvider
 	 */
 	public function boot()
 	{
-		$this->package('tricki/notification');
+		$this->package('tricki/laravel-notification');
 	}
 
 	/**
@@ -51,5 +50,4 @@ class NotificationServiceProvider extends ServiceProvider
 	{
 		return array('notification');
 	}
-
 }

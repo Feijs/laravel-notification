@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Class for creation of Notification models
  *
- * @package Tricki/Laravel-notification
+ * @package tricki/Laravel-notification
  * @author Thomas Rickenbach
  * @author Mike Feijs <mike@feijs.nl>
  */
