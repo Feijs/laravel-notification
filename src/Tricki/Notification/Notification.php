@@ -25,7 +25,7 @@ class Notification
 	 * Creates a notification and assigns it to some users
 	 *
 	 * @param string $class The full notification class
-	 * @param mixed $observers The user(s) which should receive this notification.
+	 * @param array|Collection $observers Any users, roles and permissions which may read this notification
 	 * @param Model|NULL $sender The object that initiated the notification (a user, a group, a web service etc.)
 	 * @param Model|NULL $object An object that was changed (a post that has been liked).
 	 * @param mixed|NULL $data Any additional data

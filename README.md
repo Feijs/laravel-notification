@@ -1,4 +1,4 @@
-Laravel 4 Notification
+# Laravel 4 Notification
 ======
 
 A basic starting point for a flexible user notification system in Laravel 4.
@@ -10,18 +10,30 @@ since they are often very use case specific.
 
 I'm open to ideas for extending this package.
 
+## Fork 
+This fork allows for:
+* Notifications which can be read by any user with a specific role or permission
+* Different namespaces for specific notification implementations 
+* Array or object as attached data
+
 ## Installation
 
 ### 1. Install with Composer
 
-```bash
-composer require tricki/laravel-notification:@dev
+Add the following to your `composer.json` and run **composer update**
+
+```json
+	"require": {
+		//...
+		"tricki/laravel-notification": "dev-master"
+	},
+	"repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/Feijs/laravel-notification"
+        }
+    ],
 ```
-
-This will update `composer.json` and install it into the `vendor/` directory.
-
-(See the [Packagist website](https://packagist.org/packages/tricki/laravel-notification) for a list of available version numbers and
-development releases.)
 
 ### 2. Add to Providers in `config/app.php`
 
@@ -37,7 +49,8 @@ This registers the package with Laravel and automatically creates an alias calle
 
 ### 3. Publishing config
 
-If your models are namespaced you will have to declare this in the package configuration.
+You may specify whether your project uses `Role` and `Permission` classes as defined in `Zizaco\Entrust`. This is on by default. 
+If your project does not, or you want to use only users as observers, you need to change this in the config.
 
 Publish the package configuration using Artisan:
 
@@ -45,14 +58,8 @@ Publish the package configuration using Artisan:
 php artisan config:publish tricki/laravel-notification
 ```
 
-Set the `namespace` property of the newly created `app/config/packages/tricki/laravel-notification/config.php`
-to the namespace of your notification models.
-
-#### Example
-
-```php
-'namespace' => '\MyApp\Models\'
-```
+Set the `entrust` property of the newly created `app/config/packages/tricki/laravel-notification/config.php`
+to false
 
 ### 4. Executing migration
 
@@ -60,46 +67,33 @@ to the namespace of your notification models.
 php artisan migrate --package="tricki/laravel-notification"
 ```
 
-### 5. Adding relationship to User
-
-Extend your User model with the following relationship:
-
-```php
-
-	public function notifications()
-	{
-		return $this->hasMany('\Tricki\Notification\Models\NotificationUser');
-	}
-
-```
+This will create the tables **notifications** and **notification_observer**
 
 ## Usage
 
 ### 1. Define notification models
 
-You will need separate models for each type of notification. Some examples would
-be `PostLikedNotification` or `CommentPostedNotification`.
+The class `Models\Notification` may be extended for application specific functionality. 
+Some examples would be `PostLikedNotification` or `CommentPostedNotification`.
 
-These models define the unique behavior of each notification type like it's actions
+These models define the unique behavior of each notification type, such as it's actions
 and rendering.
 
 A minimal notification model looks like this:
 
 ```php
-<?php
+<?php namespace MyApp;
 
 class PostLikedNotification extends \Tricki\Notification\Models\Notification
 {
-	public static $type = 'post_liked';
+	protected $isSuperType = false;
+    protected $isSubType = true;
+	public static $type = 'MyApp\PostLikedNotification';
 }
-
 ```
 
-The type will be saved in the database to differentiate between different
-types. The class name **must** be the CamelCase version of this type and
-end with "Notification".
-
-> Remember to add the namespace of your notification models to this package's `config.php`.
+The type variable is used to differentiate the various notification types while retaining a single database table 
+(single-table inheritance). The class name **must** be the namespaced class.
 
 ### 2. Create a notification
 
@@ -109,78 +103,91 @@ The function takes 5 parameters:
 
  * **$type** string
    The notification type (see [Define notification models](#1-define-notification-models))
- * **$sender** Model
-   The object that initiated the notification (a user, a group, a web service etc.)
- * **$object** Model | NULL
+ * **$observers** array | Collection
+   Any users, roles and permissions which may read this notification
+ * **$sender** Model | Null
+   An object that initiated the notification (a user, a group, a web service etc.)
+ * **$object** Model | Null
    An object that was changed (a post that has been liked).
- * **$users** array | Collection | User
-   The user(s) which should receive this notification.
- * **$data** mixed | NULL
+ * **$data** mixed | Null
    Any additional data you want to attach. This will be serialized into the database.
 
-### 3. Retrieving a user's notifications
 
-You can get a collection of notifications sent to a user using the `notifications` relationship,
-which will return a collection of your notification models.
+### 3. Get an instance of `Model\Notification`
 
-You can easily get a collection of all notifications sent to a user:
+You will need one to fetch or update notifications
+
+```php
+use \Tricki\Notification\Models\Notification as NotificationModel;
+public function __construct(NotificationModel $notification)
+{
+	 $this->notification = $notification;
+}
+
+// Or
+
+$this->notification = App::make('Tricki\Notification\Model\Notification');
+
+//Or 
+
+use \Tricki\Notification\Model\Notification as NotificationModel;
+
+$this->notification = new NotificationModel;
+```
+
+### 4. Retrieving notifications
+
+To get a collection of notifications a user may read:
 
 ```php
 $user = User::find($id);
-$notifications = $user->notifications;
+
+$read 	= $this->notification->fetch($user, true);
+$unread = $this->notification->fetch($user, false);
 ```
 
-You can also only get read or unread notifications using the `read` and `unread` scopes respectively:
+This will return any notifications the user may read, based on itself and it's attached roles and permissions.
+
+### 5. Mark as read
+
+A notification may be marked as read with the `markRead` method.
 
 ```php
-$readNotifications = $user->notifications()->read()->get();
-$unreadNotifications = $user->notifications()->unread()->get();
+	$instance = $this->notification->find($notification_id);
+	if(!is_null($instance)) {
+		$instance->markRead($user->id);
+	}
 ```
 
-Since the notifications are instances of your own models you can easily have different behavior or
-output for each notification type.
+It will only be marked as read for this specific user. If attached to a role or permission, 
+other users with this role or permission will still see this notification as unread.
 
-#### Example:
+## Example:
 
 ```php
-<?php
+<?php namespace MyApp;
 
 class PostLikedNotification extends \Tricki\Notification\Models\Notification
 {
-	public static $type = 'post_liked';
+	public static $type = 'MyApp\PostLikedNotification';
 
-	public function render()
-	{
-		return 'this is a post_liked notification';
-	}
+	/** 
+     * Return the main title for this message 
+     * @return string
+     */
+    public function getTitleAttribute() 
+    {
+    	return isset($this->data['title']) ? $this->data['title'] : "Post liked";
+    }
+
+    /** 
+     * Return the url for a corresponding action 
+     * @return string
+     */
+    public function getActionUrl()
+    {
+    	return app()['url']->to('posts/' . $this->object->id);
+    }
 }
 
-class CommentPostedNotification extends \Tricki\Notification\Models\Notification
-{
-	public static $type = 'comment_posted';
-
-	public function render()
-	{
-		return 'this is a comment_posted notification';
-	}
-}
-?>
-```
-
-```html
-// notifications.blade.php
-
-<ul>
-	@foreach($user->notifications as $notification)
-	<li>{{ $notification->render() }}</li>
-	@endforeach
-</ul>
-```
-
-This could output:
-```html
-<ul>
-	<li>this is a post_liked notification</li>
-	<li>this is a comment_posted notification</li>
-</ul>
 ```
