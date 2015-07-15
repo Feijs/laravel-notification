@@ -123,7 +123,7 @@ class Notification extends AbstractEloquent
 		/*-----------------------------------------
 		 * Simple query with users only
 		 */
-		if(!Config::get('notification::entrust')) {
+		if(!Config::get('laravel-notification::entrust')) {
 			return $this->whereHas('users', function($subq) use ($user, $read)
 			{	
 				$subq->where('users.id', '=', $user->id)

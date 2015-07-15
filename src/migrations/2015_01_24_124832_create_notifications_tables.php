@@ -15,7 +15,7 @@ class CreateNotificationsTables extends Migration {
 		Schema::create('notifications', function(Blueprint $table)
 		{
 			$table->increments('id');
-			switch(Config::get('notification::type_format')) {
+			switch(Config::get('laravel-notification::type_format')) {
 				case 'integer':
 					$table->integer('type')->unsigned();
 					break;
