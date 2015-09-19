@@ -45,53 +45,38 @@ abstract class AbstractEloquent extends Eloquent\Model
 	}
 
 	/**
-	 * Create a new model instance requested by the builder.
-	 *
-	 * @param  array  $attributes
-	 * @return Illuminate\Database\Eloquent\Model
-	 */
-	public function newFromBuilder($attributes = array())
-	{
-		$m = $this->mapData((array) $attributes)->newInstance(array(), true);
-		$m->setRawAttributes((array) $attributes, true);
-		return $m;
-	}
+     * Create a new model instance requested by the builder.
+     *
+     * @param  array  $attributes
+     * @return static
+     */
+    public function newFromBuilder($attributes = array())
+    {
+        $model = $this->mapData((array) $attributes)->newInstance(array(), true);
+
+        $model->setRawAttributes((array) $attributes, true);
+
+        return $model;
+    }
 
 	/**
-	 * Get a new query builder for the model's table.
-	 *
-	 * @return Reposed\Builder
-	 */
-	public function newRawQuery()
-	{
-		$builder = $this->newEloquentBuilder($this->newBaseQueryBuilder());
+     * Get a new query builder for the model.
+     * set any type of scope you want on this builder in a child class, and it'll
+     * keep applying the scope on any read-queries on this model
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function newQuery()
+    {
+        $builder = parent::newQuery();
 
-		// Once we have the query builders, we will set the model instances
-		// so the builder can easily access any information it may need
-		// from the model while it is constructing and executing various
-		// queries against it.
-		$builder->setModel($this)->with($this->with);
-		return $builder;
-	}
+        if ($this->isSubType())
+        {
+            $builder->where($this->typeField, $this->getType());
+        }
 
-	/**
-	 * Get a new query builder for the model.
-	 * set any type of scope you want on this builder in a child class, and it'll
-	 * keep applying the scope on any read-queries on this model
-	 *
-	 * @return Reposed\Builder
-	 */
-	public function newQuery($excludeDeleted = true)
-	{
-		$builder = parent::newQuery($excludeDeleted);
-
-		if ($this->isSubType())
-		{
-			$builder->where($this->typeField, $this->getType());
-		}
-
-		return $builder;
-	}
+        return $builder;
+    }
 
 	protected function isSubType()
 	{
